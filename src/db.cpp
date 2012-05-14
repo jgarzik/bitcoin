@@ -372,13 +372,13 @@ bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
 {
     assert(!fClient);
     txindex.SetNull();
-    return Read(make_pair(string("tx"), hash), txindex);
+    return Read(hash, txindex);
 }
 
 bool CTxDB::UpdateTxIndex(uint256 hash, const CTxIndex& txindex)
 {
     assert(!fClient);
-    return Write(make_pair(string("tx"), hash), txindex);
+    return Write(hash, txindex);
 }
 
 bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeight)
@@ -388,7 +388,7 @@ bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeigh
     // Add to tx index
     uint256 hash = tx.GetHash();
     CTxIndex txindex(pos, tx.vout.size());
-    return Write(make_pair(string("tx"), hash), txindex);
+    return Write(hash, txindex);
 }
 
 bool CTxDB::EraseTxIndex(const CTransaction& tx)
@@ -396,13 +396,13 @@ bool CTxDB::EraseTxIndex(const CTransaction& tx)
     assert(!fClient);
     uint256 hash = tx.GetHash();
 
-    return Erase(make_pair(string("tx"), hash));
+    return Erase(hash);
 }
 
 bool CTxDB::ContainsTx(uint256 hash)
 {
     assert(!fClient);
-    return Exists(make_pair(string("tx"), hash));
+    return Exists(hash);
 }
 
 bool CMetaDB::ReadOwnerTxes(uint160 hash160, int nMinHeight, vector<CTransaction>& vtx)

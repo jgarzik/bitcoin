@@ -308,7 +308,7 @@ public:
 class CTxDB : public CDB
 {
 public:
-    CTxDB(const char* pszMode="r+") : CDB("txhash.dat", pszMode) { }
+    CTxDB(const char* pszMode="r+") : CDB("txhash.dat", pszMode, true) { }
 private:
     CTxDB(const CTxDB&);
     void operator=(const CTxDB&);
