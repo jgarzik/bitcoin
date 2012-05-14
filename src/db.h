@@ -54,7 +54,7 @@ public:
     void CheckpointLSN(std::string strFile);
     void SetDetach(bool fDetachDB_) { fDetachDB = fDetachDB_; }
 
-    Db *OpenDb(const std::string& strFile, unsigned int nFlags);
+    Db *OpenDb(const std::string& strFile, unsigned int nFlags, bool fHash);
     void CloseDb(const std::string& strFile);
 
     DbTxn *TxnBegin(int flags=DB_TXN_NOSYNC)
@@ -79,7 +79,7 @@ protected:
     DbTxn *activeTxn;
     bool fReadOnly;
 
-    explicit CDB(const char* pszFile, const char* pszMode="r+");
+    explicit CDB(const char* pszFile, const char* pszMode="r+", bool fHash=false);
     ~CDB() { Close(); }
 public:
     void Close();
@@ -308,12 +308,26 @@ public:
     bool ReadDiskTx(uint256 hash, CTransaction& tx);
     bool ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex);
     bool ReadDiskTx(COutPoint outpoint, CTransaction& tx);
-    bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
     bool ReadHashBestChain(uint256& hashBestChain);
     bool WriteHashBestChain(uint256 hashBestChain);
     bool ReadBestInvalidWork(CBigNum& bnBestInvalidWork);
     bool WriteBestInvalidWork(CBigNum bnBestInvalidWork);
     bool LoadBlockIndex();
+};
+
+
+/** Access to the block chain index (blkhash.dat) */
+class CBlockIdxDB : public CDB
+{
+public:
+    CBlockIdxDB(const char* pszMode="r+") : CDB("blkhash.dat", pszMode, true) {}
+private:
+    CBlockIdxDB(const CBlockIdxDB&);
+    void operator=(const CBlockIdxDB&);
+public:
+    bool LoadBlockIndex();
+    bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
+    bool EraseBlockIndex(uint256 hash);
 };
 
 

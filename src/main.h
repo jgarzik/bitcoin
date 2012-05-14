@@ -12,6 +12,8 @@
 
 #include <list>
 
+class DbTxn;
+
 class CWallet;
 class CBlock;
 class CBlockIndex;
@@ -76,6 +78,7 @@ extern int64 nTransactionFee;
 
 
 class CReserveKey;
+class CBlockIdxDB;
 class CTxDB;
 class CTxIndex;
 
@@ -1001,16 +1004,16 @@ public:
     }
 
 
-    bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
-    bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex);
+    bool DisconnectBlock(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindex);
+    bool ConnectBlock(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindex);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions=true);
-    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
+    bool SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindexNew);
     bool AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos);
     bool CheckBlock() const;
     bool AcceptBlock();
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, CBlockIndex *pindexNew);
+    bool SetBestChainInner(CBlockIdxDB& blkidxdb, CTxDB& txdb, DbTxn *txn, CBlockIndex *pindexNew);
 };
 
 

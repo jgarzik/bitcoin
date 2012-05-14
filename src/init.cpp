@@ -346,8 +346,12 @@ bool AppInit2()
 
     if (GetBoolArg("-loadblockindextest"))
     {
+        CBlockIdxDB blkidxdb("r");
+        blkidxdb.LoadBlockIndex();
+
         CTxDB txdb("r");
         txdb.LoadBlockIndex();
+
         PrintBlockTree();
         return false;
     }
@@ -385,7 +389,7 @@ bool AppInit2()
     printf("Loading block index...\n");
     nStart = GetTimeMillis();
     if (!LoadBlockIndex())
-        strErrors << _("Error loading blkindex.dat") << "\n";
+        strErrors << _("Error loading block index") << "\n";
 
     // as LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill bitcoin-qt during the last operation. If so, exit.
