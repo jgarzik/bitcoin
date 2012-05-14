@@ -285,15 +285,30 @@ public:
 
 
 
+/** Access to block chain metadata database (blkmeta.dat) */
+class CMetaDB : public CDB
+{
+public:
+    CMetaDB(const char* pszMode="r+") : CDB("blkmeta.dat", pszMode) { }
+private:
+    CMetaDB(const CMetaDB&);
+    void operator=(const CMetaDB&);
+public:
+    bool ReadOwnerTxes(uint160 hash160, int nHeight, std::vector<CTransaction>& vtx);
+    bool ReadHashBestChain(uint256& hashBestChain);
+    bool WriteHashBestChain(uint256 hashBestChain);
+    bool ReadBestInvalidWork(CBigNum& bnBestInvalidWork);
+    bool WriteBestInvalidWork(CBigNum bnBestInvalidWork);
+    bool LoadBlockIndex();
+};
 
 
 
-
-/** Access to the transaction database (blkindex.dat) */
+/** Access to the transaction database (txhash.dat) */
 class CTxDB : public CDB
 {
 public:
-    CTxDB(const char* pszMode="r+") : CDB("blkindex.dat", pszMode) { }
+    CTxDB(const char* pszMode="r+") : CDB("txhash.dat", pszMode) { }
 private:
     CTxDB(const CTxDB&);
     void operator=(const CTxDB&);
@@ -303,16 +318,10 @@ public:
     bool AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeight);
     bool EraseTxIndex(const CTransaction& tx);
     bool ContainsTx(uint256 hash);
-    bool ReadOwnerTxes(uint160 hash160, int nHeight, std::vector<CTransaction>& vtx);
     bool ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex);
     bool ReadDiskTx(uint256 hash, CTransaction& tx);
     bool ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex);
     bool ReadDiskTx(COutPoint outpoint, CTransaction& tx);
-    bool ReadHashBestChain(uint256& hashBestChain);
-    bool WriteHashBestChain(uint256 hashBestChain);
-    bool ReadBestInvalidWork(CBigNum& bnBestInvalidWork);
-    bool WriteBestInvalidWork(CBigNum bnBestInvalidWork);
-    bool LoadBlockIndex();
 };
 
 

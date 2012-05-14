@@ -80,6 +80,7 @@ extern int64 nTransactionFee;
 class CReserveKey;
 class CBlockIdxDB;
 class CTxDB;
+class CMetaDB;
 class CTxIndex;
 
 void RegisterWallet(CWallet* pwalletIn);
@@ -1007,13 +1008,13 @@ public:
     bool DisconnectBlock(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindex);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions=true);
-    bool SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindexNew);
+    bool SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CMetaDB& metadb, CBlockIndex* pindexNew);
     bool AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos);
     bool CheckBlock() const;
     bool AcceptBlock();
 
 private:
-    bool SetBestChainInner(CBlockIdxDB& blkidxdb, CTxDB& txdb, DbTxn *txn, CBlockIndex *pindexNew);
+    bool SetBestChainInner(CBlockIdxDB& blkidxdb, CTxDB& txdb, CMetaDB& metadb, DbTxn *txn, CBlockIndex *pindexNew);
 };
 
 

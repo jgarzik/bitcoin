@@ -171,8 +171,9 @@ CDB::CDB(const char *pszFile, const char* pszMode, bool fHash) :
 
 static bool IsChainFile(std::string strFile)
 {
-    if (strFile == "blkindex.dat" ||
-        strFile == "blkhash.dat")
+    if (strFile == "blkmeta.dat" ||
+        strFile == "blkhash.dat" ||
+        strFile == "txhash.dat")
         return true;
 
     return false;
@@ -404,7 +405,7 @@ bool CTxDB::ContainsTx(uint256 hash)
     return Exists(make_pair(string("tx"), hash));
 }
 
-bool CTxDB::ReadOwnerTxes(uint160 hash160, int nMinHeight, vector<CTransaction>& vtx)
+bool CMetaDB::ReadOwnerTxes(uint160 hash160, int nMinHeight, vector<CTransaction>& vtx)
 {
     assert(!fClient);
     vtx.clear();
@@ -484,22 +485,22 @@ bool CTxDB::ReadDiskTx(COutPoint outpoint, CTransaction& tx)
     return ReadDiskTx(outpoint.hash, tx, txindex);
 }
 
-bool CTxDB::ReadHashBestChain(uint256& hashBestChain)
+bool CMetaDB::ReadHashBestChain(uint256& hashBestChain)
 {
     return Read(string("hashBestChain"), hashBestChain);
 }
 
-bool CTxDB::WriteHashBestChain(uint256 hashBestChain)
+bool CMetaDB::WriteHashBestChain(uint256 hashBestChain)
 {
     return Write(string("hashBestChain"), hashBestChain);
 }
 
-bool CTxDB::ReadBestInvalidWork(CBigNum& bnBestInvalidWork)
+bool CMetaDB::ReadBestInvalidWork(CBigNum& bnBestInvalidWork)
 {
     return Read(string("bnBestInvalidWork"), bnBestInvalidWork);
 }
 
-bool CTxDB::WriteBestInvalidWork(CBigNum bnBestInvalidWork)
+bool CMetaDB::WriteBestInvalidWork(CBigNum bnBestInvalidWork)
 {
     return Write(string("bnBestInvalidWork"), bnBestInvalidWork);
 }
@@ -524,7 +525,7 @@ CBlockIndex static * InsertBlockIndex(uint256 hash)
     return pindexNew;
 }
 
-bool CTxDB::LoadBlockIndex()
+bool CMetaDB::LoadBlockIndex()
 {
     if (fRequestShutdown)
         return true;
@@ -589,11 +590,12 @@ bool CTxDB::LoadBlockIndex()
         {
             pair<unsigned int, unsigned int> pos = make_pair(pindex->nFile, pindex->nBlockPos);
             mapBlockPos[pos] = pindex;
+            CTxDB txdb;                  // ugh; at least Satoshi did it first
             BOOST_FOREACH(const CTransaction &tx, block.vtx)
             {
                 uint256 hashTx = tx.GetHash();
                 CTxIndex txindex;
-                if (ReadTxIndex(hashTx, txindex))
+                if (txdb.ReadTxIndex(hashTx, txindex))
                 {
                     // check level 3: checker transaction hashes
                     if (nCheckLevel>2 || pindex->nFile != txindex.pos.nFile || pindex->nBlockPos != txindex.pos.nBlockPos)
@@ -664,7 +666,7 @@ bool CTxDB::LoadBlockIndex()
                      BOOST_FOREACH(const CTxIn &txin, tx.vin)
                      {
                           CTxIndex txindex;
-                          if (ReadTxIndex(txin.prevout.hash, txindex))
+                          if (txdb.ReadTxIndex(txin.prevout.hash, txindex))
                               if (txindex.vSpent.size()-1 < txin.prevout.n || txindex.vSpent[txin.prevout.n].IsNull())
                               {
                                   printf("LoadBlockIndex(): *** found unspent prevout %s:%i in %s\n", txin.prevout.hash.ToString().c_str(), txin.prevout.n, hashTx.ToString().c_str());
@@ -683,9 +685,10 @@ bool CTxDB::LoadBlockIndex()
         if (!block.ReadFromDisk(pindexFork))
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
 
-        CBlockIdxDB blkidxdb;              // ugh
+        CBlockIdxDB blkidxdb;              // ugh; Satoshi did it first :)
         CTxDB txdb;
-        block.SetBestChain(blkidxdb, txdb, pindexFork);
+        CMetaDB metadb;
+        block.SetBestChain(blkidxdb, txdb, metadb, pindexFork);
     }
 
     return true;

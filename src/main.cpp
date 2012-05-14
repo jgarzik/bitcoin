@@ -945,7 +945,7 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
     if (pindexNew->bnChainWork > bnBestInvalidWork)
     {
         bnBestInvalidWork = pindexNew->bnChainWork;
-        CTxDB().WriteBestInvalidWork(bnBestInvalidWork);
+        CMetaDB().WriteBestInvalidWork(bnBestInvalidWork);
         MainFrameRepaint();
     }
     printf("InvalidChainFound: invalid block=%s  height=%d  work=%s\n", pindexNew->GetBlockHash().ToString().substr(0,20).c_str(), pindexNew->nHeight, pindexNew->bnChainWork.ToString().c_str());
@@ -1381,8 +1381,8 @@ bool CBlock::ConnectBlock(CBlockIdxDB& blkidxdb, CTxDB& txdb,
     return true;
 }
 
-bool static Reorganize(CBlockIdxDB& blkidxdb, CTxDB& txdb, DbTxn *txn,
-                       CBlockIndex* pindexNew)
+bool static Reorganize(CBlockIdxDB& blkidxdb, CTxDB& txdb, CMetaDB& metadb,
+                       DbTxn *txn, CBlockIndex* pindexNew)
 {
     printf("REORGANIZE\n");
 
@@ -1448,7 +1448,7 @@ bool static Reorganize(CBlockIdxDB& blkidxdb, CTxDB& txdb, DbTxn *txn,
         BOOST_FOREACH(const CTransaction& tx, block.vtx)
             vDelete.push_back(tx);
     }
-    if (!txdb.WriteHashBestChain(pindexNew->GetBlockHash()))
+    if (!metadb.WriteHashBestChain(pindexNew->GetBlockHash()))
         return error("Reorganize() : WriteHashBestChain failed");
 
     // Make sure it's successfully written to disk before changing memory structure
@@ -1488,13 +1488,14 @@ runCommand(std::string strCommand)
 }
 
 // Called from inside SetBestChain: attaches a block to the new best chain being built
-bool CBlock::SetBestChainInner(CBlockIdxDB& blkidxdb, CTxDB& txdb, DbTxn *txn,
+bool CBlock::SetBestChainInner(CBlockIdxDB& blkidxdb, CTxDB& txdb,
+                               CMetaDB& metadb, DbTxn *txn,
                                CBlockIndex *pindexNew)
 {
     uint256 hash = GetHash();
 
     // Adding to current best branch
-    if (!ConnectBlock(blkidxdb, txdb, pindexNew) || !txdb.WriteHashBestChain(hash))
+    if (!ConnectBlock(blkidxdb, txdb, pindexNew) || !metadb.WriteHashBestChain(hash))
     {
         txn->abort();
         InvalidChainFound(pindexNew);
@@ -1513,7 +1514,7 @@ bool CBlock::SetBestChainInner(CBlockIdxDB& blkidxdb, CTxDB& txdb, DbTxn *txn,
     return true;
 }
 
-bool CBlock::SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pindexNew)
+bool CBlock::SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CMetaDB& metadb, CBlockIndex* pindexNew)
 {
     uint256 hash = GetHash();
 
@@ -1523,14 +1524,14 @@ bool CBlock::SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pinde
 
     if (pindexGenesisBlock == NULL && hash == hashGenesisBlock)
     {
-        txdb.WriteHashBestChain(hash);
+        metadb.WriteHashBestChain(hash);
         if (txn->commit(0) != 0)
             return error("SetBestChain() : TxnCommit failed");
         pindexGenesisBlock = pindexNew;
     }
     else if (hashPrevBlock == hashBestChain)
     {
-        if (!SetBestChainInner(blkidxdb, txdb, txn, pindexNew))
+        if (!SetBestChainInner(blkidxdb, txdb, metadb, txn, pindexNew))
             return error("SetBestChain() : SetBestChainInner failed");
     }
     else
@@ -1553,7 +1554,7 @@ bool CBlock::SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pinde
             printf("Postponing %i reconnects\n", vpindexSecondary.size());
 
         // Switch to new best branch
-        if (!Reorganize(blkidxdb, txdb, txn, pindexIntermediate))
+        if (!Reorganize(blkidxdb, txdb, metadb, txn, pindexIntermediate))
         {
             txn->abort();
             InvalidChainFound(pindexNew);
@@ -1576,7 +1577,7 @@ bool CBlock::SetBestChain(CBlockIdxDB& blkidxdb, CTxDB& txdb, CBlockIndex* pinde
                 break;
             }
             // errors now are not fatal, we still did a reorganisation to a new chain in a valid way
-            if (!block.SetBestChainInner(blkidxdb, txdb, txn, pindex))
+            if (!block.SetBestChainInner(blkidxdb, txdb, metadb, txn, pindex))
                 break;
         }
     }
@@ -1639,10 +1640,11 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
         return false;
 
     CTxDB txdb;
+    CMetaDB metadb;
 
     // New best
     if (pindexNew->bnChainWork > bnBestChainWork)
-        if (!SetBestChain(blkidxdb, txdb, pindexNew))
+        if (!SetBestChain(blkidxdb, txdb, metadb, pindexNew))
             return false;
 
     txdb.Close();
@@ -1939,8 +1941,10 @@ bool LoadBlockIndex(bool fAllowNew)
     // Load TX index
     //
     CTxDB txdb("cr");
-    if (!txdb.LoadBlockIndex())
+    CMetaDB metadb("cr");
+    if (!metadb.LoadBlockIndex())
         return false;
+    metadb.Close();
     txdb.Close();
 
     //

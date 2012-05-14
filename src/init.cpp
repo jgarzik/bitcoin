@@ -349,8 +349,8 @@ bool AppInit2()
         CBlockIdxDB blkidxdb("r");
         blkidxdb.LoadBlockIndex();
 
-        CTxDB txdb("r");
-        txdb.LoadBlockIndex();
+        CMetaDB metadb("r");
+        metadb.LoadBlockIndex();
 
         PrintBlockTree();
         return false;
