@@ -27,8 +27,6 @@ unsigned int nWalletDBUpdated;
 //
 
 CDBEnv bitdb;
-map<string, int> mapFileUseCount;
-static map<string, Db*> mapDb;
 
 void CDBEnv::EnvShutdown()
 {
@@ -108,11 +106,41 @@ void CDBEnv::CheckpointLSN(std::string strFile)
     dbenv.lsn_reset(strFile.c_str(), 0);
 }
 
+Db *CDBEnv::OpenDb(const string& strFile, unsigned int nFlags)
+{
+    Db *pdb;
+
+    ++mapFileUseCount[strFile];
+    pdb = mapDb[strFile];
+    if (pdb)
+        return pdb;
+
+    pdb = new Db(&dbenv, 0);
+
+    int ret = pdb->open(NULL,      // Txn pointer
+                    strFile.c_str(), // Filename
+                    "main",    // Logical db name
+                    DB_BTREE,  // Database type
+                    nFlags,    // Flags
+                    0);
+
+    if (ret > 0)
+    {
+        delete pdb;
+        --mapFileUseCount[strFile];
+
+        return NULL;
+    }
+
+    mapDb[strFile] = pdb;
+
+    return pdb;
+}
+
 
 CDB::CDB(const char *pszFile, const char* pszMode) :
     pdb(NULL), activeTxn(NULL)
 {
-    int ret;
     if (pszFile == NULL)
         return;
 
@@ -127,41 +155,16 @@ CDB::CDB(const char *pszFile, const char* pszMode) :
         if (!bitdb.Open(GetDataDir()))
             throw runtime_error("env open failed");
 
-        strFile = pszFile;
-        ++mapFileUseCount[strFile];
-        pdb = mapDb[strFile];
+        pdb = bitdb.OpenDb(pszFile, nFlags);
         if (pdb == NULL)
+            throw runtime_error(strprintf("CDB() : can't open database file %s", pszFile));
+
+        if (fCreate && !Exists(string("version")))
         {
-            pdb = new Db(&bitdb.dbenv, 0);
-
-            ret = pdb->open(NULL,      // Txn pointer
-                            pszFile,   // Filename
-                            "main",    // Logical db name
-                            DB_BTREE,  // Database type
-                            nFlags,    // Flags
-                            0);
-
-            if (ret > 0)
-            {
-                delete pdb;
-                pdb = NULL;
-                {
-                     LOCK(bitdb.cs_db);
-                    --mapFileUseCount[strFile];
-                }
-                strFile = "";
-                throw runtime_error(strprintf("CDB() : can't open database file %s, error %d", pszFile, ret));
-            }
-
-            if (fCreate && !Exists(string("version")))
-            {
-                bool fTmp = fReadOnly;
-                fReadOnly = false;
-                WriteVersion(CLIENT_VERSION);
-                fReadOnly = fTmp;
-            }
-
-            mapDb[strFile] = pdb;
+            bool fTmp = fReadOnly;
+            fReadOnly = false;
+            WriteVersion(CLIENT_VERSION);
+            fReadOnly = fTmp;
         }
     }
 }
@@ -188,14 +191,14 @@ void CDB::Close()
 
     {
         LOCK(bitdb.cs_db);
-        --mapFileUseCount[strFile];
+        --bitdb.mapFileUseCount[strFile];
     }
 }
 
-void CloseDb(const string& strFile)
+void CDBEnv::CloseDb(const string& strFile)
 {
     {
-        LOCK(bitdb.cs_db);
+        LOCK(cs_db);
         if (mapDb[strFile] != NULL)
         {
             // Close the database handle
@@ -213,12 +216,12 @@ bool CDB::Rewrite(const string& strFile, const char* pszSkip)
     {
         {
             LOCK(bitdb.cs_db);
-            if (!mapFileUseCount.count(strFile) || mapFileUseCount[strFile] == 0)
+            if (!bitdb.mapFileUseCount.count(strFile) || bitdb.mapFileUseCount[strFile] == 0)
             {
                 // Flush log data to the dat file
-                CloseDb(strFile);
+                bitdb.CloseDb(strFile);
                 bitdb.CheckpointLSN(strFile);
-                mapFileUseCount.erase(strFile);
+                bitdb.mapFileUseCount.erase(strFile);
 
                 bool fSuccess = true;
                 printf("Rewriting %s...\n", strFile.c_str());
@@ -275,7 +278,7 @@ bool CDB::Rewrite(const string& strFile, const char* pszSkip)
                     if (fSuccess)
                     {
                         db.Close();
-                        CloseDb(strFile);
+                        bitdb.CloseDb(strFile);
                         if (pdbCopy->close(0))
                             fSuccess = false;
                         delete pdbCopy;
@@ -320,7 +323,7 @@ void CDBEnv::Flush(bool fShutdown)
             if (nRefCount == 0)
             {
                 // Move log data to the dat file
-                CloseDb(strFile);
+                bitdb.CloseDb(strFile);
                 printf("%s checkpoint\n", strFile.c_str());
                 dbenv.txn_checkpoint(0, 0, 0);
                 if (strFile != "blkindex.dat" || fDetachDB) {

@@ -37,10 +37,13 @@ private:
     bool fDbEnvInit;
     boost::filesystem::path pathEnv;
 
+    std::map<std::string, Db*> mapDb;
+
     void EnvShutdown();
 
 public:
     mutable CCriticalSection cs_db;
+    std::map<std::string, int> mapFileUseCount;
     DbEnv dbenv;
 
     CDBEnv();
@@ -50,6 +53,9 @@ public:
     void Flush(bool fShutdown);
     void CheckpointLSN(std::string strFile);
     void SetDetach(bool fDetachDB_) { fDetachDB = fDetachDB_; }
+
+    Db *OpenDb(const std::string& strFile, unsigned int nFlags);
+    void CloseDb(const std::string& strFile);
 
     DbTxn *TxnBegin(int flags=DB_TXN_NOSYNC)
     {
