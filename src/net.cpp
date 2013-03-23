@@ -10,6 +10,7 @@
 #include "addrman.h"
 #include "ui_interface.h"
 #include "script.h"
+#include "udp.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -86,6 +87,19 @@ void AddOneShot(string strDest)
 unsigned short GetListenPort()
 {
     return (unsigned short)(GetArg("-port", GetDefaultPort()));
+}
+
+void CNode::PushInv(vector<CInv> &vInv)
+{
+    if (nUDPSubMask & USM_INV_BCAST)
+    {
+	CDataStream vData(SER_NETWORK, PROTOCOL_VERSION);
+	vData << vInv;
+        SendUDPMessage(this, "inv", vData);
+    }
+
+    else
+        PushMessage("inv", vInv);
 }
 
 void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
@@ -1982,6 +1996,7 @@ bool StopNode()
     if (vnThreadsRunning[THREAD_MINER] > 0) printf("ThreadBitcoinMiner still running\n");
     if (vnThreadsRunning[THREAD_RPCLISTENER] > 0) printf("ThreadRPCListener still running\n");
     if (vnThreadsRunning[THREAD_RPCHANDLER] > 0) printf("ThreadsRPCServer still running\n");
+    if (vnThreadsRunning[THREAD_UDP] > 0) printf("ThreadUDP still running\n");
 #ifdef USE_UPNP
     if (vnThreadsRunning[THREAD_UPNP] > 0) printf("ThreadMapPort still running\n");
 #endif

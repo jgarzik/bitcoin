@@ -148,6 +148,7 @@ void PrintBlockTree();
 CBlockIndex* FindBlockByHeight(int nHeight);
 /** Process protocol messages received from a given node */
 bool ProcessMessages(CNode* pfrom);
+bool ProcessMessage(CNode* pfrom, std::string strCommand, CDataStream& vRecv);
 /** Send queued protocol messages to be sent to a give node */
 bool SendMessages(CNode* pto, bool fSendTrickle);
 /** Run the importer thread, which deals with reindexing, loading bootstrap.dat, and whatever is passed to -loadblock */

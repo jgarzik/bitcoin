@@ -56,6 +56,10 @@ enum
     LOCAL_MAX
 };
 
+enum {
+    USM_INV_BCAST = (1 << 0),
+};
+
 void SetLimited(enum Network net, bool fLimited = true);
 bool IsLimited(enum Network net);
 bool IsLimited(const CNetAddr& addr);
@@ -84,6 +88,7 @@ enum threadId
     THREAD_RPCHANDLER,
     THREAD_IMPORT,
     THREAD_SCRIPTCHECK,
+    THREAD_UDP,
 
     THREAD_MAX
 };
@@ -143,6 +148,8 @@ public:
     int64 nLastRecv;
     int64 nLastSendEmpty;
     int64 nTimeConnected;
+    uint64 nUDPCookie;
+    uint64 nUDPSubMask;                // USM_*
     int nHeaderStart;
     unsigned int nMessageStart;
     CAddress addr;
@@ -200,6 +207,7 @@ public:
         nLastRecv = 0;
         nLastSendEmpty = GetTime();
         nTimeConnected = GetTime();
+	nUDPCookie = 0;
         nHeaderStart = -1;
         nMessageStart = -1;
         addr = addrIn;
@@ -542,6 +550,7 @@ public:
         }
     }
 
+    void PushInv(std::vector<CInv> &vInv);
     void PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd);
     bool IsSubscribed(unsigned int nChannel);
     void Subscribe(unsigned int nChannel, unsigned int nHops=0);

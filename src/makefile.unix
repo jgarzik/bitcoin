@@ -2,8 +2,9 @@
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-USE_UPNP:=0
+#USE_UPNP:=0
 USE_IPV6:=1
+BOOST_LIB_SUFFIX = -mt
 
 LINK:=$(CXX)
 
@@ -115,6 +116,7 @@ OBJS= \
     obj/keystore.o \
     obj/main.o \
     obj/net.o \
+    obj/udp.o \
     obj/protocol.o \
     obj/bitcoinrpc.o \
     obj/rpcdump.o \

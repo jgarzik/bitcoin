@@ -3029,7 +3029,8 @@ bool static AlreadyHave(const CInv& inv)
 unsigned char pchMessageStart[4] = { 0xf9, 0xbe, 0xb4, 0xd9 };
 
 
-bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
+// runs inside cs_main
+bool ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 {
     RandAddSeedPerfmon();
     if (fDebug)
@@ -3687,6 +3688,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         delete pfrom->pfilter;
         pfrom->pfilter = NULL;
         pfrom->fRelayTxes = true;
+    }
+
+
+    else if (strCommand == "getudpcook")
+    {
+        uint64 cookie;
+        RAND_bytes((unsigned char *)&cookie, sizeof(cookie));
+
+        pfrom->nUDPCookie = cookie;
+        pfrom->PushMessage("udpcook", cookie);
     }
 
 
