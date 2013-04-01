@@ -40,6 +40,10 @@ CNode* ConnectNode(CAddress addrConnect, const char *strDest = NULL, int64 nTime
 void MapPort();
 unsigned short GetListenPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError=REF(std::string()));
+bool NodeSendCmd(uint32_t cmd, void *buf, unsigned int bufsz);
+bool NodeReadResp(uint32_t &cmd, CDataStream &msg);
+bool NodeWaitResp(unsigned int tmout_sec);
+void NodeEngine();
 void StartNode(void* parg);
 bool StopNode();
 void SocketSendData(CNode *pnode);
@@ -105,6 +109,13 @@ extern std::map<CInv, int64> mapAlreadyAskedFor;
 extern std::vector<std::string> vAddedNodes;
 extern CCriticalSection cs_vAddedNodes;
 
+enum bcemsg {
+    BCE_SHUTDOWN_REQ,            // request shutdown
+    BCE_SHUTDOWN,                // shutdown complete
+};
+
+extern int bc_rpipe[2];          // read responses FROM blockchain engine
+extern int bc_wpipe[2];          // write commands TO blockchain engine
 
 
 

@@ -35,6 +35,8 @@ enum BindFlags {
     BF_REPORT_ERROR = (1U << 1)
 };
 
+static void StopBlockchainEngine();
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
@@ -89,6 +91,7 @@ void Shutdown(void* parg)
             LOCK(cs_main);
             ThreadScriptCheckQuit();
         }
+        StopBlockchainEngine();
         StopNode();
         {
             LOCK(cs_main);
@@ -402,6 +405,69 @@ void ThreadImport(void *data) {
     vnThreadsRunning[THREAD_IMPORT]--;
 }
 
+static pid_t bce_pid;
+
+static bool StartBlockchainEngine()
+{
+    if (pipe(bc_rpipe))
+        return InitError(_("pipe failed"));
+    if (pipe(bc_wpipe))
+        return InitError(_("pipe failed"));
+
+    bce_pid = fork();
+    if (bce_pid == -1)
+        return InitError(_("fork failed"));
+
+    // parent
+    if (bce_pid != 0)
+        return true;
+
+    // child
+    NodeEngine();
+    exit(0);
+}
+
+static void StopBlockchainEngine()
+{
+    // send shutdown cmd
+    NodeSendCmd(BCE_SHUTDOWN_REQ, NULL, 0);
+
+    int64 deadline = GetTime() + (10 * 60);
+    bool ok = false;
+
+    // loop until proper shutdown response, or timeout
+    loop {
+        if (GetTime() > deadline) {
+            printf("Blockchain engine shutdown timed out after 10 minutes\n");
+	    break;
+	}
+
+        // wait for next pipe response
+        if (!NodeWaitResp(60 * 10))
+	    continue;
+
+	// read message from pipe
+        uint32_t cmd;
+        CDataStream msg(SER_NETWORK, CLIENT_VERSION);
+        if (!NodeReadResp(cmd, msg)) {
+            printf("NodeReadResp failed\n");
+	    break;
+	}
+
+	// BCE_SHUTDOWN indicates process shutdown/completion
+        if (cmd == BCE_SHUTDOWN) {
+	    ok = true;
+	    break;
+	}
+
+	// most likely a queued pipe response intended for another
+	// part of the program.  ignore, and continue looping.
+    }
+
+    // TODO: waitpid(2)
+    (void) ok;
+}
+
 /** Initialize bitcoin.
  *  @pre Parameters should be parsed and config file should be read.
  */
@@ -634,6 +700,11 @@ bool AppInit2()
         if (r == CDBEnv::RECOVER_FAIL)
             return InitError(_("wallet.dat corrupt, salvage failed"));
     }
+
+    // ********************************************************* Step 5.5: fork
+
+    if (!StartBlockchainEngine())
+        return false;
 
     // ********************************************************* Step 6: network initialization
 

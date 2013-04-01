@@ -76,6 +76,9 @@ CCriticalSection cs_vAddedNodes;
 
 static CSemaphore *semOutbound = NULL;
 
+int bc_rpipe[2] = { -1, -1 };      // read responses FROM blockchain engine
+int bc_wpipe[2] = { -1, -1 };      // write commands TO blockchain engine
+
 void AddOneShot(string strDest)
 {
     LOCK(cs_vOneShots);
@@ -2047,6 +2050,144 @@ void StartNode(void* parg)
     // Dump network addresses
     if (!NewThread(ThreadDumpAddress, NULL))
         printf("Error; NewThread(ThreadDumpAddress) failed\n");
+}
+
+static bool NodeServicePipe()
+{
+    uint32_t msgcmd;
+    uint32_t msgsz;
+    ssize_t rbytes = read(bc_wpipe[0], &msgsz, sizeof(msgsz));
+    if (rbytes != sizeof(msgsz))
+        return false;    // shutdown child process gracefully
+
+    // lower 8 bits: cmd.  upper 24 bits: size.
+    msgcmd = msgsz & 0xff;
+    msgsz >>= 8;
+
+    CDataStream msg(SER_NETWORK, CLIENT_VERSION);
+
+    if (msgsz > 0) {
+        msg.resize(msgsz);
+
+        rbytes = read(bc_wpipe[0], &msg[0], msgsz);
+        if (rbytes != msgsz)
+            return false;    // shutdown child process gracefully
+    }
+
+    switch (msgcmd) {
+    case BCE_SHUTDOWN_REQ:
+        // fall through
+
+    default:
+        // unknown pipe command received, should never occur
+        return false;    // shutdown child process gracefully
+    }
+
+    return true;    // continue executing child process
+}
+
+bool NodeSendCmd(uint32_t cmd, void *buf, unsigned int bufsz)
+{
+    ssize_t wb;
+
+    uint32_t msgsz = cmd | (bufsz << 8);
+    wb = write(bc_wpipe[1], &msgsz, sizeof(msgsz));
+    if (wb != sizeof(msgsz))
+        return false;
+
+    if (bufsz > 0) {
+        wb = write(bc_wpipe[1], buf, bufsz);
+        if (wb != bufsz)
+            return false;
+    }
+
+    return true;
+}
+
+bool NodeReadResp(uint32_t &cmd, CDataStream &msg)
+{
+    ssize_t rb;
+
+    rb = read(bc_rpipe[0], &cmd, sizeof(cmd));
+    if (rb != sizeof(cmd))
+        return false;
+
+    uint32_t msgsz = cmd >> 8;
+    cmd &= 0xff;
+
+    msg.clear();
+
+    if (msgsz > 0) {
+        msg.resize(msgsz);
+
+        rb = read(bc_rpipe[0], &msg[0], msgsz);
+        if (rb != msgsz)
+            return false;
+    }
+
+    return true;
+}
+
+bool NodeWaitResp(unsigned int tmout_sec)
+{
+    struct timeval timeout;
+    timeout.tv_sec  = tmout_sec;
+    timeout.tv_usec = 0;
+
+    fd_set fdsetRecv;
+    fd_set fdsetSend;
+    fd_set fdsetError;
+    FD_ZERO(&fdsetRecv);
+    FD_ZERO(&fdsetSend);
+    FD_ZERO(&fdsetError);
+    SOCKET hSocketMax = 0;
+    bool have_fds = false;
+
+    FD_SET(bc_rpipe[0], &fdsetRecv);
+    hSocketMax = max(hSocketMax, (SOCKET)bc_rpipe[0]);
+    have_fds = true;
+
+    int nSelect = select(have_fds ? hSocketMax + 1 : 0,
+                         &fdsetRecv, &fdsetSend, &fdsetError, &timeout);
+    if (nSelect != 1)
+        return false;
+
+    return true;
+}
+
+void NodeEngine()
+{
+    loop {
+        struct timeval timeout;
+        timeout.tv_sec  = 86000; // arbitrary
+        timeout.tv_usec = 0;
+
+        fd_set fdsetRecv;
+        fd_set fdsetSend;
+        fd_set fdsetError;
+        FD_ZERO(&fdsetRecv);
+        FD_ZERO(&fdsetSend);
+        FD_ZERO(&fdsetError);
+        SOCKET hSocketMax = 0;
+        bool have_fds = false;
+
+        FD_SET(bc_wpipe[0], &fdsetRecv);
+        hSocketMax = max(hSocketMax, (SOCKET)bc_wpipe[0]);
+        have_fds = true;
+
+        int nSelect = select(have_fds ? hSocketMax + 1 : 0,
+                             &fdsetRecv, &fdsetSend, &fdsetError, &timeout);
+        if (nSelect != 1)
+            break;
+
+        if (!NodeServicePipe())
+            break;
+    }
+
+    // shutdown is now complete, send final message
+    uint32_t msg = BCE_SHUTDOWN;
+    ssize_t wb = write(bc_rpipe[1], &msg, sizeof(msg));
+    (void) wb;    // don't care about result
 }
 
 bool StopNode()
