@@ -419,12 +419,16 @@ static bool StartBlockchainEngine()
         return InitError(_("fork failed"));
 
     // parent
-    if (bce_pid != 0)
+    if (bce_pid != 0) {
+        printf("parent %u exiting fork\n", (unsigned) getpid());
         return true;
+    }
 
     // child
+    printf("child %u exiting fork, starting engine\n", (unsigned) getpid());
     NodeEngine();
-    exit(0);
+    printf("child %u exiting self\n", (unsigned) getpid());
+    _exit(0);            // FIXME: figure out why futex halts exit(3)
 }
 
 static void StopBlockchainEngine()

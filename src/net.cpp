@@ -2057,8 +2057,10 @@ static bool NodeServicePipe()
     uint32_t msgcmd;
     uint32_t msgsz;
     ssize_t rbytes = read(bc_wpipe[0], &msgsz, sizeof(msgsz));
-    if (rbytes != sizeof(msgsz))
+    if (rbytes != sizeof(msgsz)) {
+        printf("NodeServicePipe: err\n");
         return false;    // shutdown child process gracefully
+    }
 
     // lower 8 bits: cmd.  upper 24 bits: size.
     msgcmd = msgsz & 0xff;
@@ -2070,9 +2072,13 @@ static bool NodeServicePipe()
         msg.resize(msgsz);
 
         rbytes = read(bc_wpipe[0], &msg[0], msgsz);
-        if (rbytes != msgsz)
+        if (rbytes != msgsz) {
+            printf("NodeServicePipe: err 2\n");
             return false;    // shutdown child process gracefully
+        }
     }
+
+    printf("NodeServicePipe: cmd %u, msgsz %u\n", msgcmd, msgsz);
 
     switch (msgcmd) {
     case BCE_SHUTDOWN_REQ:
@@ -2089,6 +2095,8 @@ static bool NodeServicePipe()
 bool NodeSendCmd(uint32_t cmd, void *buf, unsigned int bufsz)
 {
     ssize_t wb;
+
+    printf("NodeSendCmd: cmd %u, msgsz %u\n", cmd, bufsz);
 
     uint32_t msgsz = cmd | (bufsz << 8);
     wb = write(bc_wpipe[1], &msgsz, sizeof(msgsz));
@@ -2109,8 +2117,10 @@ bool NodeReadResp(uint32_t &cmd, CDataStream &msg)
     ssize_t rb;
 
     rb = read(bc_rpipe[0], &cmd, sizeof(cmd));
-    if (rb != sizeof(cmd))
+    if (rb != sizeof(cmd)) {
+	printf("NodeReadResp: err\n");
         return false;
+    }
 
     uint32_t msgsz = cmd >> 8;
     cmd &= 0xff;
@@ -2121,10 +2131,13 @@ bool NodeReadResp(uint32_t &cmd, CDataStream &msg)
         msg.resize(msgsz);
 
         rb = read(bc_rpipe[0], &msg[0], msgsz);
-        if (rb != msgsz)
+        if (rb != msgsz) {
+	    printf("NodeReadResp: err 2\n");
             return false;
+	}
     }
 
+    printf("NodeReadResp: cmd %u, msgsz %u\n", cmd, msgsz);
     return true;
 }
 
@@ -2147,8 +2160,13 @@ bool NodeWaitResp(unsigned int tmout_sec)
     hSocketMax = max(hSocketMax, (SOCKET)bc_rpipe[0]);
     have_fds = true;
 
+    printf("NodeWaitResp: start\n");
+
     int nSelect = select(have_fds ? hSocketMax + 1 : 0,
                          &fdsetRecv, &fdsetSend, &fdsetError, &timeout);
+
+    printf("NodeWaitResp: end\n");
+
     if (nSelect != 1)
         return false;
 
@@ -2157,6 +2175,8 @@ bool NodeWaitResp(unsigned int tmout_sec)
 
 void NodeEngine()
 {
+    printf("child: start\n");
+
     loop {
         struct timeval timeout;
         timeout.tv_sec  = 86000; // arbitrary
@@ -2175,6 +2195,7 @@ void NodeEngine()
         hSocketMax = max(hSocketMax, (SOCKET)bc_wpipe[0]);
         have_fds = true;
 
+        printf("child: select\n");
         int nSelect = select(have_fds ? hSocketMax + 1 : 0,
                              &fdsetRecv, &fdsetSend, &fdsetError, &timeout);
         if (nSelect != 1)
@@ -2188,6 +2209,8 @@ void NodeEngine()
     uint32_t msg = BCE_SHUTDOWN;
     ssize_t wb = write(bc_rpipe[1], &msg, sizeof(msg));
     (void) wb;    // don't care about result
+
+    printf("child: shutdown\n");
 }
 
 bool StopNode()
