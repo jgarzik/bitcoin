@@ -68,10 +68,17 @@ your own itch."  This pithy phrase implies that you should not wait for
 someone else to change the software the way you like; anyone may submit
 a change that is then reviewed and incorporated into the software.
 
-At a higher level, open source ensures a healthy check-and-balance upon
-the existing software creators.
+Open source ensures a healthy check-and-balance upon the existing software creators.
 
 
 ## Forking: How To Fire Your Developers
 
+At a higher level, open source helps ensure against failure of the
+primary software producer(s).  With closed source software, if a company
+goes out of business, that software simply stops being updated.
 
+With open source software, anyone with requisite skills may update the
+software, keeping it alive and useful for existing users.
+
+This also serves as a check-and-balance against software producers who
+fail to adequately serve their users.  
