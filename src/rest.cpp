@@ -11,7 +11,6 @@
 #include "core/transaction.h"
 #include "version.h"
 #include "main.h"
-#include "sync.h"
 
 using namespace std;
 using namespace json_spirit;
@@ -81,17 +80,13 @@ static bool rest_block(AcceptedConnection *conn,
     if (!ParseHashStr(hashStr, hash))
         throw RESTERR(HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
 
-    CBlock block;
-    CBlockIndex* pblockindex = NULL;
-    {
-        LOCK(cs_main);
-        if (mapBlockIndex.count(hash) == 0)
-            throw RESTERR(HTTP_NOT_FOUND, hashStr + " not found");
+    if (mapBlockIndex.count(hash) == 0)
+        throw RESTERR(HTTP_NOT_FOUND, hashStr + " not found");
 
-        pblockindex = mapBlockIndex[hash];
-        if (!ReadBlockFromDisk(block, pblockindex))
-            throw RESTERR(HTTP_NOT_FOUND, hashStr + " not found");
-    }
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[hash];
+    if (!ReadBlockFromDisk(block, pblockindex))
+        throw RESTERR(HTTP_NOT_FOUND, hashStr + " not found");
 
     CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
     ssBlock << block;
