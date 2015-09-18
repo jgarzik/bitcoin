@@ -25,9 +25,13 @@ cache:
   - depends/built
   - depends/sdk-sources
   - $HOME/.ccache
+
 matrix:
   fast_finish: true
   include:
+    - compiler: ": XCode native"
+      env: HOST=x86_64-apple-darwin11 PACKAGES="" BITCOIN_CONFIG="--enable-reduce-exports" GOAL="install"
+      os: osx
     - compiler: ": ARM"
       env: HOST=arm-linux-gnueabihf PACKAGES="g++-arm-linux-gnueabihf" DEP_OPTS="NO_QT=1" GOAL="install" BITCOIN_CONFIG="--enable-glibc-back-compat --enable-reduce-exports"
     - compiler: ": Win32"
@@ -44,21 +48,32 @@ matrix:
       env: HOST=x86_64-apple-darwin11 PACKAGES="cmake libcap-dev libz-dev libbz2-dev" BITCOIN_CONFIG="--enable-reduce-exports" OSX_SDK=10.9 GOAL="deploy"
   exclude:
     - compiler: gcc
+
 install:
-    - if [ -n "$PPA" ]; then travis_retry sudo add-apt-repository "$PPA" -y; fi
-    - if [ -n "$PACKAGES" ]; then travis_retry sudo apt-get update; fi
-    - if [ -n "$PACKAGES" ]; then travis_retry sudo apt-get install --no-install-recommends --no-upgrade -qq $PACKAGES; fi
+    - if [ "$TRAVIS_OS_NAME" = "linux" -a -n "$PPA" ]; then travis_retry sudo add-apt-repository "$PPA" -y; fi
+    - if [ "$TRAVIS_OS_NAME" = "linux" -a -n "$PACKAGES" ]; then travis_retry sudo apt-get update; fi
+    - if [ "$TRAVIS_OS_NAME" = "linux" -a -n "$PACKAGES" ]; then travis_retry sudo apt-get install --no-install-recommends --no-upgrade -qq $PACKAGES; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install berkeley-db4; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install ccache; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install libevent; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install miniupnpc; fi
+#    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install protobuf; fi
+#    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install qt5; fi
+
 before_script:
     - unset CC; unset CXX
     - mkdir -p depends/SDKs depends/sdk-sources
     - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then wget $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -O depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
     - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
-    - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
+    - if [ "$TRAVIS_OS_NAME" = "linux" ]; then make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS ; fi
+
 script:
     - if [ -n "$USE_SHELL" ]; then export CONFIG_SHELL="$USE_SHELL"; fi
     - OUTDIR=$BASE_OUTDIR/$TRAVIS_PULL_REQUEST/$TRAVIS_JOB_NUMBER-$HOST
     - BITCOIN_CONFIG_ALL="--disable-dependency-tracking --prefix=$TRAVIS_BUILD_DIR/depends/$HOST --bindir=$OUTDIR/bin --libdir=$OUTDIR/lib"
-    - depends/$HOST/native/bin/ccache --max-size=$CCACHE_SIZE
+    - if [ "$TRAVIS_OS_NAME" = "linux" ]; then depends/$HOST/native/bin/ccache --max-size=$CCACHE_SIZE; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then ccache --max-size=$CCACHE_SIZE; fi
     - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then export CCACHE_READONLY=1; fi
     - test -n "$USE_SHELL" && eval '"$USE_SHELL" -c "./autogen.sh"' || ./autogen.sh
     - ./configure --cache-file=config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || ( cat config.log && false)
