@@ -99,7 +99,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE);
     // Limit to between 1K and MAX_BLOCK_SIZE-1K for sanity:
-    unsigned int nAbsMaxSize = MaxBlockSize(std::numeric_limits<uint64_t>::max());
+    unsigned int nAbsMaxSize = MaxBlockSize(std::numeric_limits<unsigned int>::max());
     nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(nAbsMaxSize-1000), nBlockMaxSize));
 
     // How much of the block should be dedicated to high-priority transactions,
@@ -137,7 +137,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         const int nHeight = pindexPrev->nHeight + 1;
         pblock->nTime = GetAdjustedTime();
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
-        nBlockMaxSize = std::min(nBlockMaxSize, MaxBlockSize(pblock->nTime));
+        nBlockMaxSize = std::min(nBlockMaxSize, MaxBlockSize(nHeight));
 
         int64_t nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
                                 ? nMedianTimePast
@@ -226,7 +226,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
                 continue;
 
             unsigned int nTxSigOps = iter->GetSigOpCount();
-            unsigned int maxSigOps = MaxBlockSigops(pblock->nTime);
+            unsigned int maxSigOps = MaxBlockSigops(nHeight);
             if (nBlockSigOps + nTxSigOps >= maxSigOps) {
                 if (nBlockSigOps > maxSigOps - 2) {
                     break;

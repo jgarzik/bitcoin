@@ -2985,7 +2985,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     // because we receive the wrong transactions for it.
 
     // Size limits
-    unsigned int nMaxSize = MaxBlockSize(block.GetBlockTime());
+    unsigned int nMaxSize = MaxBlockSize(std::numeric_limits<unsigned int>::max());
     if (block.vtx.empty() || block.vtx.size() > nMaxSize || ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION) > nMaxSize)
         return state.DoS(100, error("CheckBlock(): size limits failed"),
                          REJECT_INVALID, "bad-blk-length");
@@ -3097,6 +3097,12 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
             return state.DoS(100, error("%s: block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
         }
     }
+
+    // Size limits
+    unsigned int nMaxSize = MaxBlockSize(nHeight);
+    if (block.vtx.empty() || block.vtx.size() > nMaxSize || ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION) > nMaxSize)
+        return state.DoS(100, error("ContextualCheckBlock(): size limits failed"),
+                         REJECT_INVALID, "bad-blk-length");
 
     return true;
 }

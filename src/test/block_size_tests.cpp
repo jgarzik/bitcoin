@@ -60,8 +60,9 @@ FillBlock(CBlock& block, unsigned int nSize)
     assert(nBlockSize == nSize);
 }
 
-static bool TestCheckBlock(CBlock& block, uint64_t nTime, unsigned int nSize)
+static bool TestCheckBlock(CBlock& block, unsigned int nHeight, unsigned int nSize)
 {
+    uint64_t nTime = GetTime();
     SetMockTime(nTime);
     block.nTime = nTime;
     FillBlock(block, nSize);
@@ -86,20 +87,20 @@ BOOST_AUTO_TEST_CASE(TwoMegFork)
     CBlock *pblock = &pblocktemplate->block;
 
     // Before fork time...
-    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_TIME-1, 1000*1000)); // 1MB : valid
-    BOOST_CHECK(!TestCheckBlock(*pblock, BIP202_FORK_TIME-1, 1000*1000+1)); // >1MB : invalid
-    BOOST_CHECK(!TestCheckBlock(*pblock, BIP202_FORK_TIME-1, 2*1000*1000)); // 2MB : invalid
+    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_HEIGHT-1, 1000*1000)); // 1MB : valid
+    BOOST_CHECK(!TestCheckBlock(*pblock, BIP202_FORK_HEIGHT-1, 1000*1000+1)); // >1MB : invalid
+    BOOST_CHECK(!TestCheckBlock(*pblock, BIP202_FORK_HEIGHT-1, 2*1000*1000)); // 2MB : invalid
 
     // Exactly at fork time...
-    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_TIME, 1000*1000)); // 1MB : valid
-    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_TIME, 2*1000*1000)); // 2MB : valid
-    BOOST_CHECK(!TestCheckBlock(*pblock, BIP202_FORK_TIME, 2*1000*1000+1)); // >2MB : invalid
+    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_HEIGHT, 1000*1000)); // 1MB : valid
+    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_HEIGHT, 2*1000*1000)); // 2MB : valid
+    BOOST_CHECK(!TestCheckBlock(*pblock, BIP202_FORK_HEIGHT, 2*1000*1000+1)); // >2MB : invalid
 
-    // Fork height + 10 min...
-    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_TIME+600, 2*1000*1000+20)); // 2MB+20 : valid
+    // Fork height + 1
+    BOOST_CHECK(TestCheckBlock(*pblock, BIP202_FORK_HEIGHT+1, 2*1000*1000+20)); // 2MB+20 : valid
 
     // A year after fork time:
-    unsigned int yearAfter = BIP202_FORK_TIME + (365 * 24 * 60 * 60);
+    unsigned int yearAfter = BIP202_FORK_HEIGHT + (365 * 144);
     BOOST_CHECK(TestCheckBlock(*pblock, yearAfter, 1000*1000)); // 1MB : valid
     BOOST_CHECK(TestCheckBlock(*pblock, yearAfter, 2*1000*1000)); // 2MB : valid
     BOOST_CHECK(TestCheckBlock(*pblock, yearAfter, 3*1000*1000)); // 3MB : valid
