@@ -1842,6 +1842,8 @@ static int64_t nTimeTotal = 0;
 
 static bool DidBlockTriggerSizeFork(const CBlock &block, const CBlockIndex *pindex, const CChainParams &chainparams)
 {
+    if (!GetBoolArg("-hardfork2m", false))
+        return false;
     if (pblocktree->ForkBitActivated(FORK_BIT_2MB) != uint256())
         return false; // Already active
     if (block.nTime > chainparams.GetConsensus().SizeForkExpiration()) {
