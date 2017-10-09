@@ -3063,6 +3063,9 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     for (const auto& tx : block.vtx)
     {
         nSigOps += GetLegacySigOpCount(*tx);
+
+        if (fSegwitSeasoned && tx->ReplayProtected())
+            return state.DoS(100, false, REJECT_INVALID, "bad-blk-rptx", false, "replay-protected tx in block");
     }
     if (nSigOps * WITNESS_SCALE_FACTOR > MaxBlockSigOpsCost(fSegwitSeasoned))
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
