@@ -3,7 +3,7 @@ btc1 Core integration/staging tree
 
 [![Build Status](https://travis-ci.org/btc1/bitcoin.svg?branch=segwit2x)](https://travis-ci.org/btc1/bitcoin)
 
-https://bitcoincore.org
+https://segwit2x.github.io
 
 What is Bitcoin?
 ----------------
@@ -29,7 +29,7 @@ Development Process
 
 The `segwit2x` branch is regularly built and tested, but is not guaranteed to be
 completely stable. [Tags](https://github.com/btc1/bitcoin/tags) are created
-regularly to indicate new official, stable release versions of Bitcoin Core.
+regularly to indicate new official, stable release versions of btc1 Core.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
