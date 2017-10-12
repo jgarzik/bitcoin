@@ -3009,6 +3009,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     bool fHaveWitness = false;
     bool fSegwitSeasoned = false;
     bool fBIP102FirstBlock = false;
+    bool fBIP102ReplayProtect = false;
     bool fSegWitActive = (VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_SEGWIT, versionbitscache) == THRESHOLD_ACTIVE);
     if (fSegWitActive) {
         int commitpos = GetWitnessCommitmentIndex(block);
@@ -3037,6 +3038,10 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
             assert(pindexForkBuffer);
             const CBlockIndex* pindexLastSeason = pindexForkBuffer->pprev;
             fBIP102FirstBlock = (VersionBitsState(pindexLastSeason, consensusParams, Consensus::DEPLOYMENT_SEGWIT, versionbitscache) != THRESHOLD_ACTIVE);
+
+            // Detect if replay protection active, or sunset
+            if (pindexPrev->GetMedianTimePast() < consensusParams.BIP102ReplaySunsetTime)
+                fBIP102ReplayProtect = true;
         }
     }
 
@@ -3064,7 +3069,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     {
         nSigOps += GetLegacySigOpCount(*tx);
 
-        if (fSegwitSeasoned && tx->ReplayProtected())
+        if (fBIP102ReplayProtect && tx->ReplayProtected())
             return state.DoS(100, false, REJECT_INVALID, "bad-blk-rptx", false, "replay-protected tx in block");
     }
     if (nSigOps * WITNESS_SCALE_FACTOR > MaxBlockSigOpsCost(fSegwitSeasoned))
