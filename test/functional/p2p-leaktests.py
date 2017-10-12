@@ -15,7 +15,7 @@ and don't receive a VERACK. Unsupported service bits are currently 1 << 5 and
 1 << 7 (until August 1st 2018)."""
 
 from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import BitcoinTestFramework, SkipTest
 from test_framework.util import *
 
 banscore = 10
@@ -98,6 +98,8 @@ class P2PLeakTest(BitcoinTestFramework):
         self.extra_args = [['-banscore='+str(banscore)]]
 
     def run_test(self):
+        raise SkipTest("This test is currently broken")
+
         no_version_bannode = CNodeNoVersionBan()
         no_version_idlenode = CNodeNoVersionIdle()
         no_verack_idlenode = CNodeNoVerackIdle()

@@ -55,11 +55,11 @@ BASE_SCRIPTS= [
     # Scripts that are run by the travis build process.
     # Longest test should go first, to favor running tests in parallel
     'wallet-hd.py',
-# to-fix?    'walletbackup.py',
+    'walletbackup.py',
     # vv Tests less than 5m vv
     'p2p-fullblocktest.py',
     'fundrawtransaction.py',
-# to-fix    'p2p-compactblocks.py',
+    'p2p-compactblocks.py',
     'segwit.py',
     # vv Tests less than 2m vv
     'wallet.py',
@@ -114,7 +114,7 @@ BASE_SCRIPTS= [
     'bumpfee.py',
     'rpcnamedargs.py',
     'listsinceblock.py',
-# to-fix    'p2p-leaktests.py',
+    'p2p-leaktests.py',
     'wallet-encryption.py',
     'bipdersig-p2p.py',
     'bip65-cltv-p2p.py',
